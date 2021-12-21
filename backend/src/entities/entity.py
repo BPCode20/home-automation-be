@@ -5,7 +5,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import uuid
 
-db_url = 'localhost:5432'
+# db_url = '127.0.0.1:5432'
+db_url = 'host.docker.internal:5432'
 db_name = 'online-exam'
 db_user = 'postgres'
 db_password = '0NLIN3-ex4m'

@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+   home-fe:
+     env_file:
+         - docker.env
+     image: home-fe:master
+     networks:
+         - home-server-network
+     ports:
+         - "8082:8080"
+   home-be:
+       image: backend:master
+       networks:
+           - home-server-network
+       ports:
+           - "8081:5000"
+       secrets:
+           - be_db_access
+   proxy:
+     image: nginx
+     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+     restart: always
+     ports:
+       - "443:443"
+       - "80:80"
+     networks:
+       - covid-backend-network
+     volumes:
+       - ./reverse.conf/:/etc/nginx/conf.d
+networks:
+   home-server-network:
+       external: true
+
+secrets:
+   be_db_access:
+       file: ./properties.ini
+
+

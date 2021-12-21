@@ -1,6 +1,6 @@
 # coding=utf-8
 
-from flask import Flask, jsonify, request
+from flask import Blueprint, jsonify, request
 from flask_cors import CORS
 from .entities.entity import Session, engine, Base
 from .entities.temp_humidity import HumidityMeasure, HumidityMeasureSchema
@@ -9,14 +9,13 @@ import string
 import re
 
 
-# creating the Flask application
-app = Flask(__name__)
-CORS(app)
+# Blueprint
+sensor_blueprint = Blueprint('sensor_blueprint', __name__)
 # if needed, generate database schema
 Base.metadata.create_all(engine)
 
 
-@app.route('/temp-humidity')
+@sensor_blueprint.route('/temp-humidity')
 def get_all_measurements():
     # fetching from the database
     pattern = re.compile("[A-Z0-9_]{0,20}")
@@ -48,7 +47,7 @@ def get_all_measurements():
     session.close()
     return jsonify(exams)
 
-@app.route('/temp-humidity/<id>')
+@sensor_blueprint.route('/temp-humidity/<id>')
 def get_measurement_by_id(id):
     # fetching from the database
     measuementId = None
@@ -67,7 +66,7 @@ def get_measurement_by_id(id):
     session.close()
     return jsonify(exams)
 
-@app.route('/temp-humidity', methods=['POST'])
+@sensor_blueprint.route('/temp-humidity', methods=['POST'])
 def add_humidity_measurement():
     # mount exam object
     print(request.get_json())
@@ -94,7 +93,7 @@ def add_humidity_measurement():
     return jsonify(new_measurement), 201
 
 
-@app.route('/bulk/temp-humidity', methods=['POST'])
+@sensor_blueprint.route('/bulk/temp-humidity', methods=['POST'])
 def add_bulk_humidity_measurement():
     # mount exam object
     posted_measurement = HumidityMeasureSchema(many=True, only=('sensor_id','room', 'temp', 'humidity', 'measurement_time')) \
@@ -113,7 +112,7 @@ def add_bulk_humidity_measurement():
     return jsonify(new_measurements), 201
 
 
-@app.route('/sensors')
+@sensor_blueprint.route('/sensors')
 def get_sensors():
     # fetching from the database
     session = Session()
@@ -129,7 +128,7 @@ def get_sensors():
     session.close()
     return jsonify(assurances)
 
-@app.route('/rooms')
+@sensor_blueprint.route('/rooms')
 def get_rooms():
     if request.args.get('includeSensors'):
         try:

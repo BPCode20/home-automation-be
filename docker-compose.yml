@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+   home-fe:
+     image: frontend:1.0
+     networks:
+         - home-server-network
+     ports:
+         - "8084:8080"
+   home-be:
+       image: backend:master
+       networks:
+           - home-server-network
+       ports:
+           - "8081:5000"
+       secrets:
+           - be_db_access
+networks:
+   home-server-network:
+       external: False
+
+secrets:
+   be_db_access:
+       file: ./properties.ini
+
+

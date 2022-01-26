@@ -1,12 +1,16 @@
 # coding=utf-8
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_cors import CORS
 from .entities.entity import Session, engine, Base
 from .entities.temp_humidity import HumidityMeasure, HumidityMeasureSchema
 from .errorResponse import *
 import string
+from datetime import  datetime, timedelta
 import re
+import traceback
+import logging
+
 
 
 # Blueprint
@@ -14,6 +18,7 @@ sensor_blueprint = Blueprint('sensor_blueprint', __name__)
 # if needed, generate database schema
 Base.metadata.create_all(engine)
 
+logging.basicConfig(filename='backend/logs/error.log',level= logging.DEBUG)
 
 @sensor_blueprint.route('/temp-humidity')
 def get_all_measurements():
@@ -34,10 +39,26 @@ def get_all_measurements():
             filter_options["room"] = room_str
         except ValueError:
             return badRequest("This is not a valid input. Id must be Integer.")
-    if filter_options:
-        exam_objects = session.query(HumidityMeasure).filter_by(**filter_options)
-    else:
-        exam_objects = session.query(HumidityMeasure).all()
+    if request.args.get('start_date'):
+        try:
+            start_date_str = str(request.args.get('start_date'))
+            start_date = datetime.strptime(start_date_str,'%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return badRequest("This is not a valid input. Id must be Integer.")
+    if request.args.get('end_date'):
+        try:
+            end_date_str = str(request.args.get('end_date'))
+            end_date = datetime.strptime(end_date_str,'%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return badRequest("This is not a valid input. Id must be Integer.")
+    if not start_date:
+        start_date = datetime.now() - timedelta(hours=24)
+    if not end_date:
+        end_date = datetime.now()
+    # if filter_options:
+    #     exam_objects = session.query(HumidityMeasure).filter_by(**filter_options).filter(HumidityMeasure.birthday < dt.date(2000, 1, 1)))
+    # else:
+    exam_objects = session.query(HumidityMeasure).all()
 
     # transforming into JSON-serializable objects
     schema = HumidityMeasureSchema(many=True)
@@ -69,28 +90,32 @@ def get_measurement_by_id(id):
 @sensor_blueprint.route('/temp-humidity', methods=['POST'])
 def add_humidity_measurement():
     # mount exam object
-    print(request.get_json())
-    data = request.get_json()
-    if "measurement_time" in data:
-        # print(data["measurement_time"])
-        data["measurement_time"] = datetime.utcfromtimestamp(data["measurement_time"]).strftime('%Y-%m-%d %H:%M:%S')
-        # print(data["measurement_time"])
-        # print(type(data["measurement_time"]))
-    posted_measurement = HumidityMeasureSchema(only=('sensor_id','room', 'temp', 'humidity', 'measurement_time')) \
-        .load(request.get_json())
+    try:
+        print(request.get_json())
+        data = request.get_json()
+        if "measurement_time" in data:
+            # print(data["measurement_time"])
+            data["measurement_time"] = datetime.utcfromtimestamp(data["measurement_time"]).strftime('%Y-%m-%d %H:%M:%S')
+            # print(data["measurement_time"])
+            # print(type(data["measurement_time"]))
+        posted_measurement = HumidityMeasureSchema(only=('sensor_id','room', 'temp', 'humidity', 'measurement_time')) \
+            .load(request.get_json())
 
-    measurement = HumidityMeasure(**posted_measurement)
+        measurement = HumidityMeasure(**posted_measurement)
 
-    # persist exam
-    session = Session()
-    session.add(measurement)
-    session.commit()
+        # persist exam
+        session = Session()
+        session.add(measurement)
+        session.commit()
 
-    # return created exam
-    new_measurement = HumidityMeasureSchema().dump(measurement)
-    session.close()
-    print(new_measurement)
-    return jsonify(new_measurement), 201
+        # return created exam
+        new_measurement = HumidityMeasureSchema().dump(measurement)
+        session.close()
+        print(new_measurement)
+        return jsonify(new_measurement), 201
+    except Exception as e:
+        current_app.logger.error(e)
+        return badRequest("Didn;t work broo...")
 
 
 @sensor_blueprint.route('/bulk/temp-humidity', methods=['POST'])
